@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>SBS Video Player</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
+    <style>
+        #videoContainer {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            gap: 1rem;
+        }
+
+        .loadVideosWrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            position: relative;
+            gap: 0.5rem;
+        }
+
+        .videoWrapper {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .videoTop {
+            width: 880px;
+            height: 495px;
+        }
+
+        .videoBottom {
+            width: 880px;
+        }
+
+        #controls {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            padding: 10px;
+            gap: 1rem;
+        }
+
+        #timeline {
+            width: 100%;
+        }
+
+        #playPauseButton {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <a class="navbar-brand" href="#">SBS Multicam Player</a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarSupportedContent">
+            <ul class="navbar-nav mr-auto">
+                <li class="nav-item active">
+                    <a class="nav-link" href="#" id="openButton1">Open Top Video</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" id="openButton2">Open Bottom Video</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" id="takeSnapshotButton"><i class="icon-home icon-4x"></i>Download Snapshots</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" id="addDelayButton">Sync +1s</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" id="reduceDelayButton">Sync -1s</a>
+                </li>
+            </ul>
+
+        </div>
+    </nav>
+    <div id="videoContainer">
+        <div class="videoWrapper mt-3">
+            <video class="videoBottom" id="video1" controls></video>
+            <video class="videoTop" id="video2" controls></video>
+            <div id="controls">
+                <button id="playPauseButton" class="btn btn-primary">Play/Pause</button>
+                <input type="range" id="timeline" min="0" value="0" class="form-range">
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const video1 = document.getElementById('video1');
+        const video2 = document.getElementById('video2');
+        const timeline = document.getElementById('timeline');
+        const openButton1 = document.getElementById('openButton1');
+        const openButton2 = document.getElementById('openButton2');
+        const playPauseButton = document.getElementById('playPauseButton');
+
+        let delayForTopVideo = 0;
+
+        // Add event listeners for video play/pause events
+        video1.addEventListener('play', syncVideos);
+        video1.addEventListener('pause', syncVideos);
+        video1.addEventListener('loadedmetadata', updateTimelineMax);
+        video2.addEventListener('play', syncVideos);
+        video2.addEventListener('pause', syncVideos);
+        video2.addEventListener('loadedmetadata', updateTimelineMax);
+
+        // Add event listener for timeline changes
+        timeline.addEventListener('input', handleTimelineChange);
+
+        // Add event listeners for the open buttons
+        openButton1.addEventListener('click', openVideo1);
+        openButton2.addEventListener('click', openVideo2);
+
+        // Add event listener for the play/pause button
+        playPauseButton.addEventListener('click', playPauseVideos);
+
+        // Synchronize the playback of videos
+        function syncVideos() {
+            if (!video1.paused) {
+                video2.currentTime = video1.currentTime - delayForTopVideo;
+                video2.play();
+            } else if (!video2.paused) {
+                video1.currentTime = video2.currentTime + delayForTopVideo;
+                video1.play();
+            } else {
+                video1.pause();
+                video2.pause();
+            }
+        }
+
+        // Handle timeline changes
+        function handleTimelineChange() {
+            const currentTime = timeline.value;
+            video1.currentTime = currentTime;
+            video2.currentTime = currentTime - delayForTopVideo;
+            syncVideos();
+        }
+
+        // Update the maximum value of the timeline based on video duration
+        function updateTimelineMax() {
+            const maxDuration = Math.max(video1.duration, video2.duration);
+            timeline.max = maxDuration;
+        }
+
+        // Open video 1
+        function openVideo1() {
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = 'video/*';
+            fileInput.addEventListener('change', function (event) {
+                handleFileSelection(event, video1);
+            });
+            fileInput.click();
+        }
+
+        // Open video 2
+        function openVideo2() {
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = 'video/*';
+            fileInput.addEventListener('change', function (event) {
+                handleFileSelection(event, video2);
+            });
+            fileInput.click();
+        }
+
+        // Handle file selection
+        function handleFileSelection(event, videoElement) {
+            const file = event.target.files[0];
+            if (file) {
+                const fileURL = URL.createObjectURL(file);
+                videoElement.src = fileURL;
+
+                // Reset the playback and synchronization
+                videoElement.pause();
+                videoElement.currentTime = 0;
+                timeline.value = 0;
+
+                // Update the maximum value of the timeline after the video is loaded
+                videoElement.addEventListener('loadedmetadata', updateTimelineMax);
+            }
+        }
+
+        // Play/Pause videos
+        function playPauseVideos() {
+            if (!video1.paused || !video2.paused) {
+                video1.pause();
+                video2.pause();
+            } else {
+                video1.play();
+                video2.play();
+            }
+        }
+
+        // Function to add a 1-second delay to the top video
+        function addDelayToTopVideo() {
+            delayForTopVideo += 1;
+            syncVideos();
+        }
+
+        // Function to reduce 1-second delay from the top video
+        function reduceDelayFromTopVideo() {
+            if (delayForTopVideo >= 1) {
+                delayForTopVideo -= 1;
+            } else {
+                delayForTopVideo = 0;
+            }
+            syncVideos();
+        }
+
+        // Event listener for the Add Delay button
+        document.getElementById('addDelayButton').addEventListener('click', addDelayToTopVideo);
+
+        // Event listener for the Reduce Delay button
+        document.getElementById('reduceDelayButton').addEventListener('click', reduceDelayFromTopVideo);
+
+        // Function to capture snapshots from video size
+        function takeSnapshotFromVideoSize(videoElement) {
+            const video = videoElement;
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // Create a link to download the snapshot
+            const link = document.createElement('a');
+            link.href = canvas.toDataURL();
+            link.download = `snapshot_${videoElement.id}_${video.currentTime}.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Event listener for the Take Snapshot from Video Size button
+        document.getElementById('takeSnapshotButton').addEventListener('click', () => {
+            takeSnapshotFromVideoSize(video1);
+            takeSnapshotFromVideoSize(video2);
+        });
+
+    </script>
+</body>
+
+</html>
